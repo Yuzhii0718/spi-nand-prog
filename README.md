@@ -22,12 +22,13 @@ The default driver. No extra arguments needed.
 
 add the following arguments to select this driver:
 
-```
+```bash
 -d serprog -a /dev/ttyACM0
 ```
 
 ## Usage
-```
+
+```bash
 spi-nand-prog <operation> [file name] [arguments]
 
 Operations: read/write/erase/scan
@@ -38,4 +39,21 @@ Arguments:
  -l <length>: read length. default: flash_size
  --no-ecc: disable on-die ECC. This also disables data verification when writing.
  --with-oob: include OOB data during operation.
+```
+
+## Quick Start
+
+Prepare Environment
+
+```bash
+sudo apt install build-essential libusb-1.0-0-dev libftdi-dev pkg-config -y
+```
+
+Build
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
 ```
