@@ -16,7 +16,7 @@
 #include <string.h>
 #include <time.h>
 
-static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
+int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 {
 	struct spi_mem_op op = SPINAND_GET_FEATURE_OP(reg,
 						      spinand->scratchbuf);
@@ -30,7 +30,7 @@ static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 	return 0;
 }
 
-static int spinand_write_reg_op(struct spinand_device *spinand, u8 reg, u8 val)
+int spinand_write_reg_op(struct spinand_device *spinand, u8 reg, u8 val)
 {
 	struct spi_mem_op op = SPINAND_SET_FEATURE_OP(reg,
 						      spinand->scratchbuf);
@@ -186,7 +186,7 @@ int spinand_ecc_enable(struct spinand_device *spinand,
 			       enable ? CFG_ECC_ENABLE : 0);
 }
 
-static int spinand_write_enable_op(struct spinand_device *spinand)
+int spinand_write_enable_op(struct spinand_device *spinand)
 {
 	struct spi_mem_op op = SPINAND_WR_EN_DIS_OP(true);
 
@@ -550,12 +550,44 @@ static int spinand_create_dirmaps(struct spinand_device *spinand)
 }
 
 static const struct spinand_manufacturer *spinand_manufacturers[] = {
+	&alliancememory_spinand_manufacturer,
+	&ato_spinand_manufacturer,
+	&ato_ad_spinand_manufacturer,
+	&biwin_spinand_manufacturer,
+	&chucun_spinand_manufacturer,
+	&dosilicon_spinand_manufacturer,
+	&esmt_8c_spinand_manufacturer,
+	&esmt_c8_spinand_manufacturer,
+	&etron_spinand_manufacturer,
+	&fison_spinand_manufacturer,
+	&fmsh_spinand_manufacturer,
+	&foresee_spinand_manufacturer,
 	&gigadevice_spinand_manufacturer,
+	&gsto_spinand_manufacturer,
+	&hiksemi_spinand_manufacturer,
+	&hyf_spinand_manufacturer,
+	&issi_spinand_manufacturer,
+	&jsc_spinand_manufacturer,
+	&kingston_spinand_manufacturer,
 	&macronix_spinand_manufacturer,
 	&micron_spinand_manufacturer,
+	&mk_spinand_manufacturer,
+	&mira_spinand_manufacturer,
 	&paragon_spinand_manufacturer,
+	&silicongo_spinand_manufacturer,
+	&skyhigh_spinand_manufacturer,
+	&titan_spinand_manufacturer,
 	&toshiba_spinand_manufacturer,
+	&tym_spinand_manufacturer,
+	&unim_spinand_manufacturer,
+	&unim_zl_spinand_manufacturer,
 	&winbond_spinand_manufacturer,
+	&wodposit_spinand_manufacturer,
+	&xincun_spinand_manufacturer,
+	&xincun_6c_spinand_manufacturer,
+	&xtx_spinand_manufacturer,
+	&zbit_spinand_manufacturer,
+	&zentel_spinand_manufacturer,
 };
 
 static int spinand_manufacturer_match(struct spinand_device *spinand,

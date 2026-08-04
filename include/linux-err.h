@@ -2,6 +2,10 @@
 #define __must_check __attribute__((__warn_unused_result__))
 #define __force
 
+#ifndef ERANGE
+#define ERANGE		34	/* Math result not representable */
+#endif
+
 #define MAX_ERRNO	4095
 
 #define IS_ERR_VALUE(x) ((unsigned long)(void *)(x) >= (unsigned long)-MAX_ERRNO)

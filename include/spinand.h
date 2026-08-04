@@ -12,6 +12,46 @@
 #include <nand.h>
 #include <spi-mem.h>
 
+/* Stub types for MTD oob layout (not used by core, only referenced by vendor tables) */
+struct mtd_info;
+
+struct mtd_oob_region {
+	unsigned int offset;
+	unsigned int length;
+};
+
+struct mtd_ooblayout_ops {
+	int (*ecc)(struct mtd_info *mtd, int section, struct mtd_oob_region *region);
+	int (*rfree)(struct mtd_info *mtd, int section, struct mtd_oob_region *region);
+};
+
+struct mtd_info {
+	unsigned int oobsize;
+	unsigned int oobavail;
+	unsigned int ecc_step_size;
+	unsigned int ecc_strength;
+};
+
+/*
+ * Stub helpers: ooblayout functions reference these but they are never
+ * actually called at runtime (only stored in static vendor tables).
+ */
+static inline struct nand_device *mtd_to_nanddev(struct mtd_info *mtd)
+{
+	static struct nand_device dummy_nand;
+	return &dummy_nand;
+}
+
+static inline struct mtd_info *nanddev_to_mtd(struct nand_device *nand)
+{
+	static struct mtd_info dummy_mtd;
+	return &dummy_mtd;
+}
+
+#ifndef WARN_ON
+#define WARN_ON(cond) (cond)
+#endif
+
 /**
  * Standard SPI NAND flash operations
  */
@@ -57,6 +97,59 @@
 		   SPI_MEM_OP_ADDR(3, addr, 1),				\
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
+
+/* Macros for CASN */
+#define SPINAND_CASN_PAGE_READ_FROM_CACHE_OP(fast, naddr, addr, ndummy, buf, len) \
+	SPI_MEM_OP(SPI_MEM_OP_CMD(fast ? 0x0b : 0x03, 1),		\
+		   SPI_MEM_OP_ADDR(naddr, addr, 1),			\
+		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 1))
+
+#define SPINAND_CASN_PAGE_READ_FROM_CACHE_X2_OP(naddr, addr, ndummy, buf, len)	\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(0x3b, 1),				\
+		   SPI_MEM_OP_ADDR(naddr, addr, 1),			\
+		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 2))
+
+#define SPINAND_CASN_PAGE_READ_FROM_CACHE_DUALIO_OP(naddr, addr, ndummy, buf, len)	\
+		SPI_MEM_OP(SPI_MEM_OP_CMD(0xbb, 1),			\
+			   SPI_MEM_OP_ADDR(naddr, addr, 2),		\
+			   SPI_MEM_OP_DUMMY(ndummy, 2),			\
+			   SPI_MEM_OP_DATA_IN(len, buf, 2))
+
+#define SPINAND_CASN_PAGE_READ_FROM_CACHE_X4_OP(naddr, addr, ndummy, buf, len)	\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(0x6b, 1),				\
+		   SPI_MEM_OP_ADDR(naddr, addr, 1),			\
+		   SPI_MEM_OP_DUMMY(ndummy, 1),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 4))
+
+#define SPINAND_CASN_PAGE_READ_FROM_CACHE_QUADIO_OP(naddr, addr, ndummy, buf, len)	\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(0xeb, 1),				\
+		   SPI_MEM_OP_ADDR(naddr, addr, 4),			\
+		   SPI_MEM_OP_DUMMY(ndummy, 4),				\
+		   SPI_MEM_OP_DATA_IN(len, buf, 4))
+
+#define SPINAND_CASN_PROG_LOAD(reset, naddr, addr, buf, len)		\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(reset ? 0x02 : 0x84, 1),		\
+		   SPI_MEM_OP_ADDR(naddr, addr, 1),			\
+		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_DATA_OUT(len, buf, 1))
+
+#define SPINAND_CASN_PROG_LOAD_X4(reset, naddr, addr, buf, len)		\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(reset ? 0x32 : 0x34, 1),		\
+		   SPI_MEM_OP_ADDR(naddr, addr, 1),			\
+		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_DATA_OUT(len, buf, 4))
+
+#define SPINAND_CASN_ADVECC_OP(casn_adv_ecc_status, buf)			\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(casn_adv_ecc_status.cmd, 1),			\
+		   SPI_MEM_OP_ADDR(casn_adv_ecc_status.addr_nbytes,		\
+				   casn_adv_ecc_status.addr,			\
+				   casn_adv_ecc_status.addr_buswidth),		\
+		   SPI_MEM_OP_DUMMY(casn_adv_ecc_status.dummy_nbytes,		\
+				    casn_adv_ecc_status.dummy_buswidth),	\
+		   SPI_MEM_OP_DATA_IN(casn_adv_ecc_status.status_nbytes, buf, 1))
+/* Macros for CASN end */
 
 #define SPINAND_PAGE_READ_FROM_CACHE_OP(fast, addr, ndummy, buf, len)	\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(fast ? 0x0b : 0x03, 1),		\
@@ -234,12 +327,44 @@ struct spinand_manufacturer {
 };
 
 /* SPI NAND manufacturers */
+extern const struct spinand_manufacturer alliancememory_spinand_manufacturer;
+extern const struct spinand_manufacturer ato_spinand_manufacturer;
+extern const struct spinand_manufacturer ato_ad_spinand_manufacturer;
+extern const struct spinand_manufacturer biwin_spinand_manufacturer;
+extern const struct spinand_manufacturer chucun_spinand_manufacturer;
+extern const struct spinand_manufacturer dosilicon_spinand_manufacturer;
+extern const struct spinand_manufacturer esmt_8c_spinand_manufacturer;
+extern const struct spinand_manufacturer esmt_c8_spinand_manufacturer;
+extern const struct spinand_manufacturer etron_spinand_manufacturer;
+extern const struct spinand_manufacturer fison_spinand_manufacturer;
+extern const struct spinand_manufacturer fmsh_spinand_manufacturer;
+extern const struct spinand_manufacturer foresee_spinand_manufacturer;
 extern const struct spinand_manufacturer gigadevice_spinand_manufacturer;
+extern const struct spinand_manufacturer gsto_spinand_manufacturer;
+extern const struct spinand_manufacturer hiksemi_spinand_manufacturer;
+extern const struct spinand_manufacturer hyf_spinand_manufacturer;
+extern const struct spinand_manufacturer issi_spinand_manufacturer;
+extern const struct spinand_manufacturer jsc_spinand_manufacturer;
+extern const struct spinand_manufacturer kingston_spinand_manufacturer;
 extern const struct spinand_manufacturer macronix_spinand_manufacturer;
 extern const struct spinand_manufacturer micron_spinand_manufacturer;
+extern const struct spinand_manufacturer mk_spinand_manufacturer;
+extern const struct spinand_manufacturer mira_spinand_manufacturer;
 extern const struct spinand_manufacturer paragon_spinand_manufacturer;
+extern const struct spinand_manufacturer silicongo_spinand_manufacturer;
+extern const struct spinand_manufacturer skyhigh_spinand_manufacturer;
+extern const struct spinand_manufacturer titan_spinand_manufacturer;
 extern const struct spinand_manufacturer toshiba_spinand_manufacturer;
+extern const struct spinand_manufacturer tym_spinand_manufacturer;
+extern const struct spinand_manufacturer unim_spinand_manufacturer;
+extern const struct spinand_manufacturer unim_zl_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
+extern const struct spinand_manufacturer wodposit_spinand_manufacturer;
+extern const struct spinand_manufacturer xincun_spinand_manufacturer;
+extern const struct spinand_manufacturer xincun_6c_spinand_manufacturer;
+extern const struct spinand_manufacturer xtx_spinand_manufacturer;
+extern const struct spinand_manufacturer zbit_spinand_manufacturer;
+extern const struct spinand_manufacturer zentel_spinand_manufacturer;
 
 /**
  * struct spinand_op_variants - SPI NAND operation variants
@@ -274,11 +399,17 @@ struct spinand_op_variants {
  *		uncorrectable bitflips
  */
 struct spinand_ecc_info {
+	const void *ooblayout;
 	int (*get_status)(struct spinand_device *spinand, u8 status);
 };
 
 #define SPINAND_HAS_QE_BIT		BIT(0)
 #define SPINAND_HAS_CR_FEAT_BIT		BIT(1)
+#define SPINAND_SUP_CR			BIT(2)
+#define SPINAND_SUP_ON_DIE_ECC		BIT(3)
+#define SPINAND_SUP_LEGACY_ECC_STATUS	BIT(4)
+#define SPINAND_SUP_ADV_ECC_STATUS	BIT(5)
+#define SPINAND_ECC_PARITY_READABLE	BIT(6)
 
 /**
  * struct spinand_info - Structure used to describe SPI NAND chips
@@ -328,8 +459,9 @@ struct spinand_info {
 		.update_cache = __update,				\
 	}
 
-#define SPINAND_ECCINFO(__get_status)			\
+#define SPINAND_ECCINFO(__ooblayout, __get_status)			\
 	.eccinfo = {							\
+		.ooblayout = __ooblayout,				\
 		.get_status = __get_status,				\
 	}
 
@@ -351,6 +483,26 @@ struct spinand_info {
 struct spinand_dirmap {
 	struct spi_mem_dirmap_desc *wdesc;
 	struct spi_mem_dirmap_desc *rdesc;
+};
+
+/* Forward declarations for CASN types (definitions not needed in this project) */
+struct nand_casn;
+struct CASN_OOB;
+
+/**
+ * struct CASN_ADVECC - CASN's advanced ECC description
+ * @cmd: Command to access SPI-NAND on-chip ECC status registers
+ * @mask: Mask to access SPI-NAND on-chip ECC status registers
+ * @shift: How many bits to shift to get on-chip ECC status
+ * @pre_op: Pre-operation before status extraction
+ * @pre_mask: Pre-mask used with pre_op
+ */
+struct CASN_ADVECC {
+	u8 cmd;
+	u16 mask;
+	u8 shift;
+	u8 pre_op;
+	u8 pre_mask;
 };
 
 /**
@@ -403,8 +555,47 @@ struct spinand_device {
 	u8 *oobbuf;
 	u8 *scratchbuf;
 	const struct spinand_manufacturer *manufacturer;
+
+	bool use_casn;
+	struct nand_casn *casn;
+	struct spi_mem_op *advecc_high_ops;
+	struct spi_mem_op *advecc_low_ops;
+	struct CASN_OOB *casn_oob;
+	struct CASN_ADVECC *advecc_high;
+	struct CASN_ADVECC *advecc_low;
+
+	u8 advecc_low_bitcnt;
+	u8 advecc_noerr_status;
+	u8 advecc_uncor_status;
+	u8 advecc_post_op;
+	u8 advecc_post_mask;
+
+	size_t (*eccsr_math_op[4])(size_t, size_t);
+
 	void *priv;
 };
+
+/**
+ * mtd_to_spinand() - Get the SPI NAND device attached to an MTD instance
+ * @mtd: MTD instance
+ *
+ * Return: the SPI NAND device attached to @mtd.
+ */
+static inline struct spinand_device *mtd_to_spinand(struct mtd_info *mtd)
+{
+	return container_of(mtd_to_nanddev(mtd), struct spinand_device, base);
+}
+
+/**
+ * spinand_to_mtd() - Get the MTD device embedded in a SPI NAND device
+ * @spinand: SPI NAND device
+ *
+ * Return: the MTD device embedded in @spinand.
+ */
+static inline struct mtd_info *spinand_to_mtd(struct spinand_device *spinand)
+{
+	return nanddev_to_mtd(&spinand->base);
+}
 
 /**
  * nand_to_spinand() - Get the SPI NAND device embedding an NAND object
@@ -435,6 +626,9 @@ int spinand_match_and_init(struct spinand_device *spinand,
 			   enum spinand_readid_method rdid_method);
 
 int spinand_upd_cfg(struct spinand_device *spinand, u8 mask, u8 val);
+int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val);
+int spinand_write_reg_op(struct spinand_device *spinand, u8 reg, u8 val);
+int spinand_write_enable_op(struct spinand_device *spinand);
 int spinand_ecc_enable(struct spinand_device *spinand, bool enable);
 int spinand_select_target(struct spinand_device *spinand, unsigned int target);
 
