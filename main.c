@@ -5,6 +5,32 @@
 #include <spinand.h>
 #include <flashops.h>
 
+static void print_help(const char *prog)
+{
+	printf("SPI-NAND Programmer\n\n");
+	printf("Usage: %s <operation> [file] [options]\n\n", prog);
+	printf("Operations:\n");
+	printf("  r[ead]   <file>     Read flash data to file\n");
+	printf("  w[rite]  <file>     Write file to flash\n");
+	printf("  e[rase]             Erase entire flash\n");
+	printf("  s[can]              Scan for bad blocks\n");
+	printf("  h[elp]              Show this help\n\n");
+	printf("Options:\n");
+	printf("  -d <driver>          Hardware driver (default: ch347)\n");
+	printf("  -a <arg>             Driver argument (e.g. /dev/ttyACM0)\n");
+	printf("  -o <offset>          Flash offset (page-aligned for read, block-aligned for write)\n");
+	printf("  -l <length>          Read length (default: entire flash)\n");
+	printf("  --no-ecc             Disable on-die ECC\n");
+	printf("  --with-oob           Include OOB data\n");
+	printf("  --erase-rest         Erase remaining blocks after writing\n\n");
+	printf("Examples:\n");
+	printf("  %s r dump.bin -l 0x1000          Read 4KB\n", prog);
+	printf("  %s w image.bin --no-ecc           Write image without ECC\n", prog);
+	printf("  %s e                              Erase entire flash\n", prog);
+	printf("  %s s                              Scan bad blocks\n", prog);
+	printf("  %s w image.bin -d serprog -a /dev/ttyACM0\n", prog);
+}
+
 static int no_ecc = 0;
 static int with_oob = 0;
 static int erase_rest = 0;
@@ -59,18 +85,21 @@ int main(int argc, char *argv[])
 
 	left_argc = argc - optind;
 	if (left_argc < 1) {
-		puts("missing action.");
-		return -1;
+		print_help(argv[0]);
+		return 0;
 	}
 
 	//reuse opt here. It's now actual action.
 	opt = argv[optind][0];
 
 	switch (opt) {
+	case 'h':
+		print_help(argv[0]);
+		return 0;
 	case 'r':
 	case 'w':
 		if (left_argc < 2) {
-			puts("missing filename.");
+			fprintf(stderr, "missing filename.\n");
 			return -1;
 		}
 		fpath = argv[optind + 1];
@@ -79,7 +108,8 @@ int main(int argc, char *argv[])
 	case 's':
 		break;
 	default:
-		puts("unknown operation.");
+		fprintf(stderr, "unknown operation '%c'.\n", opt);
+		print_help(argv[0]);
 		return -1;
 	}
 
